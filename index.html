@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HT-301 Thermal Viewer - Interactive Architecture MOP</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --grid-color: rgba(255, 255, 255, 0.08);
+            --color-network: #eab308; /* Yellow - Camera/Hardware */
+            --color-backend: #8b5cf6; /* Purple - Processing/Core */
+            --color-frontend: #3b82f6; /* Blue - UI/Viewer */
+            --color-database: #10b981; /* Green - Exporter/Storage */
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 3rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            max-width: 800px;
+        }
+
+        .header h1 {
+            font-size: 2.8rem;
+            margin: 0 0 1rem 0;
+            background: linear-gradient(135deg, var(--color-frontend), var(--color-backend));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.4));
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            line-height: 1.6;
+        }
+
+        .svg-wrapper {
+            width: 100%;
+            max-width: 1100px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        text {
+            font-family: inherit;
+        }
+
+        .node-card {
+            fill: #1e293b;
+            stroke-width: 2;
+        }
+
+        /* ----- Keyframes for 4-Step Cycle (16s total, 4s per step) ----- */
+        
+        /* Step 1: Camera Ingest */
+        @keyframes step1-glow {
+            0%, 25% { filter: drop-shadow(0 0 12px var(--color-network)); stroke: var(--color-network); stroke-width: 3px; }
+            25.1%, 100% { filter: none; stroke: rgba(255,255,255,0.15); stroke-width: 2px; }
+        }
+        @keyframes balloon1-fade {
+            0%, 25% { opacity: 1; visibility: visible; transform: translateY(0); }
+            25.1%, 100% { opacity: 0; visibility: hidden; transform: translateY(10px); }
+        }
+
+        /* Step 2: Processing Core */
+        @keyframes step2-glow {
+            0%, 25% { filter: none; stroke: rgba(255,255,255,0.15); stroke-width: 2px; }
+            25.1%, 50% { filter: drop-shadow(0 0 12px var(--color-backend)); stroke: var(--color-backend); stroke-width: 3px; }
+            50.1%, 100% { filter: none; stroke: rgba(255,255,255,0.15); stroke-width: 2px; }
+        }
+        @keyframes balloon2-fade {
+            0%, 25% { opacity: 0; visibility: hidden; transform: translateY(10px); }
+            25.1%, 50% { opacity: 1; visibility: visible; transform: translateY(0); }
+            50.1%, 100% { opacity: 0; visibility: hidden; transform: translateY(10px); }
+        }
+
+        /* Step 3: Frontend Render */
+        @keyframes step3-glow {
+            0%, 50% { filter: none; stroke: rgba(255,255,255,0.15); stroke-width: 2px; }
+            50.1%, 75% { filter: drop-shadow(0 0 12px var(--color-frontend)); stroke: var(--color-frontend); stroke-width: 3px; }
+            75.1%, 100% { filter: none; stroke: rgba(255,255,255,0.15); stroke-width: 2px; }
+        }
+        @keyframes balloon3-fade {
+            0%, 50% { opacity: 0; visibility: hidden; transform: translateY(10px); }
+            50.1%, 75% { opacity: 1; visibility: visible; transform: translateY(0); }
+            75.1%, 100% { opacity: 0; visibility: hidden; transform: translateY(10px); }
+        }
+
+        /* Step 4: Storage / Database Export */
+        @keyframes step4-glow {
+            0%, 75% { filter: none; stroke: rgba(255,255,255,0.15); stroke-width: 2px; }
+            75.1%, 100% { filter: drop-shadow(0 0 12px var(--color-database)); stroke: var(--color-database); stroke-width: 3px; }
+        }
+        @keyframes balloon4-fade {
+            0%, 75% { opacity: 0; visibility: hidden; transform: translateY(10px); }
+            75.1%, 100% { opacity: 1; visibility: visible; transform: translateY(0); }
+        }
+
+        /* Element Assignments */
+        .node-cam    { animation: step1-glow 16s infinite; }
+        .node-core   { animation: step2-glow 16s infinite; }
+        .node-ui     { animation: step3-glow 16s infinite; }
+        .node-export { animation: step4-glow 16s infinite; }
+
+        .tip-cam    { animation: balloon1-fade 16s infinite; transition: all 0.3s ease; }
+        .tip-core   { animation: balloon2-fade 16s infinite; transition: all 0.3s ease; }
+        .tip-ui     { animation: balloon3-fade 16s infinite; transition: all 0.3s ease; }
+        .tip-export { animation: balloon4-fade 16s infinite; transition: all 0.3s ease; }
+
+        .path-line {
+            fill: none;
+            stroke: var(--grid-color);
+            stroke-width: 3;
+            stroke-dasharray: 8,8;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>HT-301 Thermal Viewer MOP</h1>
+        <p>Interactive System Architecture &amp; Execution Flow. This glassmorphic dashboard tracks the data pipeline from the physical sensor through radiometric processing, frontend rendering, and persistence storage.</p>
+    </div>
+
+    <div class="svg-wrapper">
+        <svg viewBox="0 0 1000 640" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg">
+            
+            <!-- Structural Grid -->
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--grid-color)" stroke-width="1"/>
+            </pattern>
+            <rect width="100%" height="100%" fill="url(#grid)" rx="12" />
+
+            <!-- Hub and Spoke Connectors (Clean 90-degree bends) -->
+            <!-- Cam to Core -->
+            <path class="path-line" d="M 220 320 L 400 320" />
+            
+            <!-- Core to UI -->
+            <path class="path-line" d="M 600 320 L 690 320 L 690 180 L 780 180" />
+            
+            <!-- Core to Export -->
+            <path class="path-line" d="M 600 320 L 690 320 L 690 460 L 780 460" />
+
+            <!-- Animated Pulsing Packets -->
+            <circle r="4.5" fill="var(--color-network)">
+                <animateMotion dur="2s" repeatCount="indefinite" path="M 220 320 L 400 320" />
+            </circle>
+            
+            <circle r="4.5" fill="var(--color-frontend)">
+                <animateMotion dur="2.5s" repeatCount="indefinite" path="M 600 320 L 690 320 L 690 180 L 780 180" />
+            </circle>
+
+            <circle r="4.5" fill="var(--color-database)">
+                <animateMotion dur="2.5s" repeatCount="indefinite" path="M 600 320 L 690 320 L 690 460 L 780 460" />
+            </circle>
+
+
+            <!-- --- NODES --- -->
+
+            <!-- Spoke Left: Hardware / Network Tier -->
+            <g transform="translate(60, 240)">
+                <rect class="node-card node-cam" width="160" height="160" rx="12" />
+                <circle cx="80" cy="60" r="30" fill="none" stroke="var(--color-network)" stroke-width="3"/>
+                <circle cx="80" cy="60" r="12" fill="var(--color-network)" opacity="0.6"/>
+                <text x="80" y="115" fill="var(--text-main)" font-size="16" font-weight="bold" text-anchor="middle">HT-301 Camera</text>
+                <text x="80" y="135" fill="var(--color-network)" font-size="12" text-anchor="middle">USB-C Data Stream</text>
+            </g>
+
+            <!-- Hub Center: Backend / Core Tier -->
+            <g transform="translate(400, 180)">
+                <rect class="node-card node-core" width="200" height="280" rx="12" />
+                
+                <!-- CPU Icon -->
+                <path d="M 70 80 h 60 v 50 h -60 z" fill="none" stroke="var(--color-backend)" stroke-width="3" rx="4" />
+                <path d="M 80 80 v -10 m 20 10 v -10 m 20 10 v -10" stroke="var(--color-backend)" stroke-width="3" />
+                <path d="M 80 130 v 10 m 20 -10 v 10 m 20 -10 v 10" stroke="var(--color-backend)" stroke-width="3" />
+                <path d="M 70 90 h -10 m 10 15 h -10 m 10 15 h -10" stroke="var(--color-backend)" stroke-width="3" />
+                <path d="M 130 90 h 10 m -10 15 h 10 m -10 15 h 10" stroke="var(--color-backend)" stroke-width="3" />
+
+                <text x="100" y="170" fill="var(--text-main)" font-size="18" font-weight="bold" text-anchor="middle">Core Processing</text>
+                <text x="100" y="195" fill="var(--color-backend)" font-size="12" text-anchor="middle">NumPy &amp; OpenCV Engine</text>
+                <text x="100" y="215" fill="var(--text-muted)" font-size="12" text-anchor="middle">Radiometric Conversion</text>
+                <text x="100" y="235" fill="var(--text-muted)" font-size="12" text-anchor="middle">Multi-ROI Tracking</text>
+                <text x="100" y="255" fill="var(--text-muted)" font-size="12" text-anchor="middle">Isotherm Overlays</text>
+            </g>
+
+            <!-- Spoke Top-Right: Frontend Tier -->
+            <g transform="translate(780, 100)">
+                <rect class="node-card node-ui" width="160" height="160" rx="12" />
+                <!-- Screen Icon -->
+                <rect x="40" y="40" width="80" height="50" rx="4" fill="none" stroke="var(--color-frontend)" stroke-width="3"/>
+                <path d="M 60 90 l -10 20 h 60 l -10 -20" fill="none" stroke="var(--color-frontend)" stroke-width="3"/>
+                
+                <text x="80" y="130" fill="var(--text-main)" font-size="16" font-weight="bold" text-anchor="middle">Live Viewer</text>
+                <text x="80" y="148" fill="var(--color-frontend)" font-size="12" text-anchor="middle">PyQt6 UI Client</text>
+            </g>
+
+            <!-- Spoke Bottom-Right: Database / Storage Tier -->
+            <g transform="translate(780, 380)">
+                <rect class="node-card node-export" width="160" height="160" rx="12" />
+                <!-- Database Icon -->
+                <ellipse cx="80" cy="45" rx="35" ry="12" fill="none" stroke="var(--color-database)" stroke-width="3"/>
+                <path d="M 45 45 v 30 a 35 12 0 0 0 70 0 v -30" fill="none" stroke="var(--color-database)" stroke-width="3"/>
+                <path d="M 45 75 v 30 a 35 12 0 0 0 70 0 v -30" fill="none" stroke="var(--color-database)" stroke-width="3"/>
+                
+                <text x="80" y="130" fill="var(--text-main)" font-size="16" font-weight="bold" text-anchor="middle">Auto-Exporter</text>
+                <text x="80" y="148" fill="var(--color-database)" font-size="12" text-anchor="middle">.png / .npy / .json</text>
+            </g>
+
+
+            <!-- --- SEQUENTIAL TOOLTIPS / BALLOONS --- -->
+            
+            <g class="tip-cam" transform="translate(60, 160)">
+                <rect x="0" y="0" width="160" height="55" rx="6" fill="var(--bg-dark)" stroke="var(--color-network)" stroke-width="1"/>
+                <text x="80" y="22" fill="var(--color-network)" font-size="12" font-weight="bold" text-anchor="middle">STEP 1: INGESTION</text>
+                <text x="80" y="42" fill="var(--text-muted)" font-size="11" text-anchor="middle">384x288 @ 25Hz Frames</text>
+            </g>
+
+            <g class="tip-core" transform="translate(420, 100)">
+                <rect x="0" y="0" width="160" height="55" rx="6" fill="var(--bg-dark)" stroke="var(--color-backend)" stroke-width="1"/>
+                <text x="80" y="22" fill="var(--color-backend)" font-size="12" font-weight="bold" text-anchor="middle">STEP 2: PROCESSING</text>
+                <text x="80" y="42" fill="var(--text-muted)" font-size="11" text-anchor="middle">Apply Palettes &amp; Stats</text>
+            </g>
+
+            <g class="tip-ui" transform="translate(780, 20)">
+                <rect x="0" y="0" width="160" height="55" rx="6" fill="var(--bg-dark)" stroke="var(--color-frontend)" stroke-width="1"/>
+                <text x="80" y="22" fill="var(--color-frontend)" font-size="12" font-weight="bold" text-anchor="middle">STEP 3: RENDERING</text>
+                <text x="80" y="42" fill="var(--text-muted)" font-size="11" text-anchor="middle">Update Glassmorphic UI</text>
+            </g>
+
+            <g class="tip-export" transform="translate(780, 560)">
+                <rect x="0" y="0" width="160" height="55" rx="6" fill="var(--bg-dark)" stroke="var(--color-database)" stroke-width="1"/>
+                <text x="80" y="22" fill="var(--color-database)" font-size="12" font-weight="bold" text-anchor="middle">STEP 4: PERSISTENCE</text>
+                <text x="80" y="42" fill="var(--text-muted)" font-size="11" text-anchor="middle">Save Archive Context</text>
+            </g>
+
+        </svg>
+    </div>
+
+</body>
+</html>
